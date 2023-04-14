@@ -2,10 +2,7 @@ import pygame
 from physics import *
 import random
 from quadtree import QuadTree
-
-BACKGROUND_COLOR = pygame.color.Color("darkslategray")
-
-QUAD_CAPACITY = 1
+from constants import QUAD_CAPACITY, BACKGROUND_COLOR
 
 
 class App:
@@ -15,20 +12,15 @@ class App:
             (i_wsx, i_wsy), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
         self.bodys = []
-        self.wires = []
+        self.springs = []
+        self.soft_bodys = []
 
-        #self.wires.append(Cloth(self, Vector2(200, 100), 350, 250, 20))
+        #self.soft_bodys.append(Wire(self, Vector2(100, 200), Vector2(400, 300), 40))
 
-        # body1 = Body(self, Vector2(i_wsx / 2, 100), 10, 20, 1, True)
-        # body2 = Body(self, Vector2(i_wsx / 2 + 300, 200), 10, 10, 1)
-        # body3 = Body(self, Vector2(i_wsx / 2 + 400, 400), 10, 10, 1)
-        # self.bodys.append(body1)
-        # self.bodys.append(body2)
-        # self.bodys.append(body3)
-        # self.wires.append(WireSegment(self, body1, body2))
-        # self.wires.append(WireSegment(self, body2, body3))
+        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 12))
+        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 12))
 
-        self.wires.append(Wire(self, Vector2(200, 100), Vector2(800, 100), 50))
+        self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 100), 300, 200, (10, 10)))
 
         # for i in range(200):
         #     self.bodys.append(Body(self, Vector2(random.randint(
@@ -48,16 +40,18 @@ class App:
             0, 0, wsx, wsy), self.bodys)
         for body in self.bodys:
             body.update(deltatime)
-        for wire in self.wires:
-            wire.update(deltatime)
+        for spring in self.springs:
+            spring.update(deltatime)
+        for softbody in self.soft_bodys:
+            softbody.update()
 
     def draw(self):
         self.screen.fill(BACKGROUND_COLOR)
         # self.quad_tree.draw(self.screen)
         for body in self.bodys:
             body.draw()
-        for wire in self.wires:
-            wire.draw()
+        for spring in self.springs:
+            spring.draw()
 
     def run(self):
         while True:
@@ -84,6 +78,9 @@ class App:
                             body.velocity = Vector2(0, 0)
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
+                        self.soft_bodys.append(CircleSoftBody(self, Vector2(
+                            event.pos[0], event.pos[1]), 60, 12))
+                    elif event.button == 2:
                         self.bodys.append(Body(self, Vector2(
                             event.pos[0], event.pos[1]), 20, 20, 1))
             self.update(deltatime)

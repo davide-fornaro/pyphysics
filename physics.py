@@ -1,12 +1,7 @@
 import math
 import pygame
 from pygame.math import Vector2
-
-G = Vector2(0, 9.81)
-AIR_VISCOSITY = .148e-4
-AIR_K = 6 * math.pi * AIR_VISCOSITY
-
-MAX_TRAJECTORY_POINTS = 199
+from constants import G, AIR_K, MAX_TRAJECTORY_POINTS
 
 
 class Body:
@@ -136,18 +131,19 @@ class Body:
         return pygame.Rect(self.position.x - self.radius, self.position.y - self.radius, self.radius * 2, self.radius * 2)
 
 
-class WireSegment:
-    def __init__(self, app, body1: Body, body2: Body):
+class Spring:
+    def __init__(self, app, body1: Body, body2: Body, strength: float = 1, damping: float = 0.01):
         self.app = app
         self.body1 = body1
         self.body2 = body2
+        self.strength = strength
+        self.damping = damping
         self.length = body1.position.distance_to(body2.position) - \
             body1.radius - body2.radius
 
     def update(self, deltatime: float):
         if self.body1 not in self.app.bodys or self.body2 not in self.app.bodys:
-            # provvisorio
-            self.app.wires[0].wire_segments.remove(self)
+            self.app.springs.remove(self)
             return
         if (self.body2.position - self.body1.position).length() == 0:
             return
@@ -158,31 +154,44 @@ class WireSegment:
         angle = math.atan2(dy, dx)
         dl = distance - self.length
         body1_force = Vector2(
-            math.cos(angle), math.sin(angle)) * dl
+            math.cos(angle), math.sin(angle)) * dl * self.strength
         body2_force = Vector2(
-            math.cos(angle), math.sin(angle)) * -dl
-        # body1_force = body1_force * self.body1.velocity.length() * deltatime
-        # body2_force = body2_force * self.body2.velocity.length() * deltatime
+            math.cos(angle), math.sin(angle)) * -dl * self.strength
+        body1_force -= self.body1.velocity * self.damping * deltatime
+        body2_force -= self.body2.velocity * self.damping * deltatime
         if not self.body1.static:
-            self.body1.apply_force(body1_force)
+            self.body1.apply_force(body1_force * self.body1.mass)
         if not self.body2.static:
-            self.body2.apply_force(body2_force)
+            self.body2.apply_force(body2_force * self.body2.mass)
 
     def draw(self):
         pygame.draw.aaline(self.app.screen, pygame.color.Color(
             "white"), self.body1.position, self.body2.position, 2)
 
 
-class Wire:
-    def __init__(self, app, start: Vector2, end: Vector2, segments: int):
+class SoftBody:
+    def __init__(self, app):
         self.app = app
+        self.springs = []
+        self.bodys = []
+
+    def update(self):
+        for spring in self.springs:
+            if spring not in self.app.springs:
+                self.springs.remove(spring)
+        for body in self.bodys:
+            if body not in self.app.bodys:
+                self.bodys.remove(body)
+
+
+class Wire(SoftBody):
+    def __init__(self, app, start: Vector2, end: Vector2, segments: int):
+        super().__init__(app)
         self.start = start
         self.end = end
         self.segments = segments
-        self.bodys = []
-        self.wire_segments = []
         self.create_bodys()
-        self.create_wire_segments()
+        self.create_springs()
 
     def create_bodys(self):
         for i in range(self.segments):
@@ -191,72 +200,120 @@ class Wire:
             if i == 0 or i == self.segments - 1:
                 static = True
                 radius = 5
-            position = Vector2(self.start.x + (self.end.x - self.start.x) / self.segments * i,
-                               self.start.y + (self.end.y - self.start.y) / self.segments * i)
-            self.bodys.append(
-                Body(self.app, position, radius, radius, 0.3, static))
-            self.app.bodys.append(self.bodys[i])
+            self.bodys.append(Body(self.app, self.start + (self.end - self.start)
+                              * (i / self.segments), 2, radius, 0.5, static=static))
+        self.app.bodys.extend(self.bodys)
 
-    def create_wire_segments(self):
-        for i in range(self.segments - 1):
-            self.wire_segments.append(
-                WireSegment(self.app, self.bodys[i], self.bodys[i + 1]))
-
-    def update(self, deltatime: float):
-        for wire_segment in self.wire_segments:
-            wire_segment.update(deltatime)
-
-    def draw(self):
-        for wire_segment in self.wire_segments:
-            wire_segment.draw()
+    def create_springs(self):
+        for i in range(len(self.bodys) - 1):
+            self.springs.append(
+                Spring(self.app, self.bodys[i], self.bodys[i + 1]))
+        self.app.springs.extend(self.springs)
 
 
-class Cloth:
-    def __init__(self, app, position: Vector2, width: int, height: int, segments: int):
-        self.app = app
+class RectangleSoftBody(SoftBody):
+    def __init__(self, app, position: Vector2, width: int, height: int, segments: list):
+        super().__init__(app)
         self.position = position
         self.width = width
         self.height = height
         self.segments = segments
-        self.wire_segments = []
-        self.bodys = []
 
         self.create_bodys()
-        self.create_wires()
+        self.create_springs()
+
+    def create_bodys(self):
+        for i in range(self.segments[0]):
+            for j in range(self.segments[1]):
+                static = False
+                if (i == 0 or i == self.segments[0] - 1) and j == 0:
+                    static = True
+                position = Vector2(self.position.x + self.width / self.segments[0] * i,
+                                   self.position.y + self.height / self.segments[1] * j)
+                self.bodys.append(
+                    Body(self.app, position, 2, 2, 0.3, static))
+                self.app.bodys.append(self.bodys[-1])
+
+    def create_springs(self):
+        for i in range(self.segments[0]):
+            for j in range(self.segments[1]):
+                if i != self.segments[0] - 1:
+                    self.springs.append(
+                        Spring(self.app, self.bodys[i * self.segments[1] + j], self.bodys[(i + 1) * self.segments[1] + j]))
+                if j != self.segments[1] - 1:
+                    self.springs.append(
+                        Spring(self.app, self.bodys[i * self.segments[1] + j], self.bodys[i * self.segments[1] + j + 1]))
+                if i != self.segments[0] - 1 and j != self.segments[1] - 1:
+                    self.springs.append(
+                        Spring(self.app, self.bodys[i * self.segments[1] + j], self.bodys[(i + 1) * self.segments[1] + j + 1]))
+                if i != self.segments[0] - 1 and j != 0:
+                    self.springs.append(
+                        Spring(self.app, self.bodys[i * self.segments[1] + j], self.bodys[(i + 1) * self.segments[1] + j - 1]))
+        self.app.springs.extend(self.springs)
+
+
+class CircleSoftBody(SoftBody):
+    def __init__(self, app, position: Vector2, radius: int, segments: int):
+        super().__init__(app)
+        self.position = position
+        self.radius = radius
+        self.segments = segments
+        self.springs = []
+        self.bodys = []
+        self.center = Body(self.app, self.position, 7, 5, 0.7)
+        self.app.bodys.append(self.center)
+
+        self.create_bodys()
+        self.create_springs()
 
     def create_bodys(self):
         for i in range(self.segments):
-            for j in range(self.segments):
-                static = False
-                radius = 2
-                if (j == 0 and (i == 0 or i == self.segments - 1)):
-                    radius = 5
-                    static = True
-                position = Vector2(self.position.x + self.width / self.segments * i,
-                                   self.position.y + self.height / self.segments * j)
-                self.bodys.append(
-                    Body(self.app, position, radius, radius, 0.3, static))
-                self.app.bodys.append(self.bodys[-1])
+            position = Vector2(self.position.x + self.radius * math.cos(
+                math.radians(360 / self.segments * i)), self.position.y + self.radius * math.sin(math.radians(360 / self.segments * i)))
+            self.bodys.append(
+                Body(self.app, position, 2, 3, 0.5))
+            self.app.bodys.append(self.bodys[-1])
 
-    def create_wires(self):
+    def create_springs(self):
         for i in range(self.segments):
-            for j in range(self.segments):
-                if i < self.segments - 1:
-                    self.wire_segments.append(
-                        WireSegment(self.app, self.bodys[i + j * self.segments], self.bodys[i + 1 + j * self.segments]))
-                if j < self.segments - 1:
-                    self.wire_segments.append(
-                        WireSegment(self.app, self.bodys[i + j * self.segments], self.bodys[i + (j + 1) * self.segments]))
-                if i < self.segments - 1 and j < self.segments - 1:
-                    self.wire_segments.append(
-                        WireSegment(self.app, self.bodys[i + j * self.segments], self.bodys[i + 1 + (j + 1) * self.segments]))
-                    self.wire_segments.append(
-                        WireSegment(self.app, self.bodys[i + 1 + j * self.segments], self.bodys[i + (j + 1) * self.segments]))
+            self.springs.append(
+                Spring(self.app, self.bodys[i], self.bodys[(i + 1) % self.segments]))
+            self.springs.append(Spring(
+                self.app, self.bodys[i], self.bodys[(i + 2) % self.segments]))
+            self.springs.append(Spring(
+                self.app, self.bodys[i], self.bodys[(i + 3) % self.segments]))
+            self.springs.append(Spring(
+                self.app, self.bodys[i], self.center))
+        self.app.springs.extend(self.springs)
 
-    def update(self, deltatime: float):
-        for wire in self.wire_segments:
-            wire.update(deltatime)
+    def update(self):
+        super().update()
+        self.check_collision()
 
-    def draw(self):
-        for wire in self.wire_segments:
-            wire.draw()
+    def collide(self, other: 'CircleSoftBody'):
+        try:
+            distance = (self.position - other.position).length()
+            c_direction = (self.position - other.position).normalize()
+            self.center.position += c_direction * \
+                (self.radius + other.radius - distance)
+            other.center.position -= c_direction * \
+                (self.radius + other.radius - distance)
+            rv = self.center.velocity - other.center.velocity
+            if rv.dot(c_direction) > 0:
+                return
+            e = min(self.center.elasticity, other.center.elasticity)
+            j = -(1 + e) * rv.dot(c_direction)
+            j /= self.center.inv_mass + other.center.inv_mass
+            impulse = c_direction * j
+
+            self.center.apply_force(impulse)
+            other.center.apply_force(-impulse)
+        except:
+            pass
+
+    def check_collision(self):
+        for soft_body in self.app.soft_bodys:
+            if isinstance(soft_body, CircleSoftBody):
+                distance = (self.position - soft_body.position).length()
+                if soft_body != self and distance < self.radius + soft_body.radius:
+                    self.collide(soft_body)
