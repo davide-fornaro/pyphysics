@@ -226,7 +226,7 @@ class RectangleSoftBody(SoftBody):
         for i in range(self.segments[0]):
             for j in range(self.segments[1]):
                 static = False
-                if (i == 0 or i == self.segments[0] - 1) and j == 0:
+                if (i == 0 or i % 2 == 0) and j == 0:
                     static = True
                 position = Vector2(self.position.x + self.width / self.segments[0] * i,
                                    self.position.y + self.height / self.segments[1] * j)
@@ -292,8 +292,8 @@ class CircleSoftBody(SoftBody):
 
     def collide(self, other: 'CircleSoftBody'):
         try:
-            distance = (self.position - other.position).length()
-            c_direction = (self.position - other.position).normalize()
+            distance = (self.center.position - other.center.position).length()
+            c_direction = (self.center.position - other.center.position).normalize()
             self.center.position += c_direction * \
                 (self.radius + other.radius - distance)
             other.center.position -= c_direction * \
@@ -311,9 +311,38 @@ class CircleSoftBody(SoftBody):
         except:
             pass
 
+    def collide_body(self, other: Body):
+        try:
+            distance = (self.center.position - other.position).length()
+            c_direction = (self.center.position - other.position).normalize()
+            self.center.position += c_direction * \
+                (self.radius - distance)
+            other.position -= c_direction * \
+                (self.radius - distance)
+            rv = self.center.velocity - other.velocity
+            if rv.dot(c_direction) > 0:
+                return
+            e = min(self.center.elasticity, other.elasticity)
+            j = -(1 + e) * rv.dot(c_direction)
+            j /= self.center.inv_mass + other.inv_mass
+            impulse = c_direction * j
+
+            self.center.apply_force(impulse)
+            other.apply_force(-impulse)
+        except:
+            pass
+    
+    @property
+    def rect(self):
+        return pygame.Rect(self.center.position.x - self.radius, self.center.position.y - self.radius, self.radius * 2, self.radius * 2)
+
     def check_collision(self):
         for soft_body in self.app.soft_bodys:
             if isinstance(soft_body, CircleSoftBody):
-                distance = (self.position - soft_body.position).length()
+                distance = (self.center.position - soft_body.center.position).length()
                 if soft_body != self and distance < self.radius + soft_body.radius:
                     self.collide(soft_body)
+        bodys = self.app.quad_tree.query_range(self.rect)
+        for body in bodys:
+            if body not in self.bodys and body.radius > 5 and self.center.position.distance_to(body.position) < self.radius:
+                self.collide_body(body)

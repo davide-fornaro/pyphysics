@@ -20,7 +20,7 @@ class App:
         self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 12))
         self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 12))
 
-        self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 100), 300, 200, (10, 10)))
+        # self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 100), 300, 200, (10, 10)))
 
         # for i in range(200):
         #     self.bodys.append(Body(self, Vector2(random.randint(
