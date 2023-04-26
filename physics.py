@@ -5,7 +5,7 @@ from constants import G, AIR_K, MAX_TRAJECTORY_POINTS
 
 
 class Body:
-    def __init__(self, app, position: Vector2, mass: float, radius: float, elasticity: float, static: bool = False, show_trajectory=False):
+    def __init__(self, app, position: Vector2, mass: float, radius: float, elasticity: float, static: bool = False, show_trajectory=False, draw=True):
         self.app = app
         self.position = position
         self.velocity = Vector2(0, 0)
@@ -16,6 +16,7 @@ class Body:
         self.static = static
         self.trajectory = []
         self.show_trajectory = show_trajectory
+        self.show = draw
 
     def create_trajectory_points(self):
         if self.static or not self.show_trajectory:
@@ -61,6 +62,8 @@ class Body:
         self.create_trajectory_points()
 
     def draw(self):
+        if not self.show:
+            return
         if self.show_trajectory:
             last_point = None
             for point in self.trajectory:
@@ -87,27 +90,28 @@ class Body:
     def collide(self, other: 'Body'):
         distance = self.position.distance_to(other.position)
         if distance < self.radius + other.radius:
-            try:
-                c_direction = (self.position - other.position).normalize()
+            dp = self.position - other.position
+            if dp.length() == 0:
+                return
+            c_direction = (self.position - other.position).normalize()
 
-                self.position += c_direction * \
-                    (self.radius + other.radius - distance)
-                other.position -= c_direction * \
-                    (self.radius + other.radius - distance)
+            dd = self.radius + other.radius - distance
+            if not self.static:
+                self.position += c_direction * dd
+            if not other.static:
+                other.position -= c_direction * dd
 
-                relative_velocity = self.velocity - other.velocity
-                if relative_velocity.dot(c_direction) > 0:
-                    return
+            relative_velocity = self.velocity - other.velocity
+            if relative_velocity.dot(c_direction) > 0:
+                return
 
-                e = min(self.elasticity, other.elasticity)
-                j = -(1 + e) * relative_velocity.dot(c_direction)
-                j /= self.inv_mass + other.inv_mass
-                impulse = c_direction * j
+            e = min(self.elasticity, other.elasticity)
+            j = -(1 + e) * relative_velocity.dot(c_direction)
+            j /= self.inv_mass + other.inv_mass
+            impulse = c_direction * j
 
-                self.apply_force(impulse)
-                other.apply_force(-impulse)
-            except Exception:
-                pass
+            self.apply_force(impulse)
+            other.apply_force(-impulse)
 
     def controls(self):
         mouse_pressed = pygame.mouse.get_pressed()
@@ -132,7 +136,7 @@ class Body:
 
 
 class Spring:
-    def __init__(self, app, body1: Body, body2: Body, strength: float = 1, damping: float = 0.01):
+    def __init__(self, app, body1: Body, body2: Body, strength: float = 1, damping: float = 0.03, draw: bool = True):
         self.app = app
         self.body1 = body1
         self.body2 = body2
@@ -140,6 +144,7 @@ class Spring:
         self.damping = damping
         self.length = body1.position.distance_to(body2.position) - \
             body1.radius - body2.radius
+        self.show = draw
 
     def update(self, deltatime: float):
         if self.body1 not in self.app.bodys or self.body2 not in self.app.bodys:
@@ -164,9 +169,22 @@ class Spring:
         if not self.body2.static:
             self.body2.apply_force(body2_force * self.body2.mass)
 
+        # if abs(dl) < min(self.body1.radius, self.body2.radius) * deltatime:
+        #     return
+        # spring_centre = (self.body1.position + self.body2.position) / 2
+        # spring_direction = (self.body1.position -
+        #                     self.body2.position).normalize()
+        # if (not self.body1.static):
+        #     self.body1.position = spring_centre + spring_direction * \
+        #         (self.length / 2 + self.body1.radius)
+        # if (not self.body2.static):
+        #     self.body2.position = spring_centre - spring_direction * \
+        #         (self.length / 2 + self.body2.radius)
+
     def draw(self):
-        pygame.draw.aaline(self.app.screen, pygame.color.Color(
-            "white"), self.body1.position, self.body2.position, 2)
+        if self.show:
+            pygame.draw.aaline(self.app.screen, pygame.color.Color(
+                "white"), self.body1.position, self.body2.position, 2)
 
 
 class SoftBody:
@@ -226,12 +244,12 @@ class RectangleSoftBody(SoftBody):
         for i in range(self.segments[0]):
             for j in range(self.segments[1]):
                 static = False
-                if (i == 0 or i % 2 == 0) and j == 0:
+                if (i == 0 or i == self.segments[0] - 1) and j == 0:
                     static = True
                 position = Vector2(self.position.x + self.width / self.segments[0] * i,
                                    self.position.y + self.height / self.segments[1] * j)
                 self.bodys.append(
-                    Body(self.app, position, 2, 2, 0.3, static))
+                    Body(self.app, position, 2, 2, 0.7, static))
                 self.app.bodys.append(self.bodys[-1])
 
     def create_springs(self):
@@ -260,30 +278,37 @@ class CircleSoftBody(SoftBody):
         self.segments = segments
         self.springs = []
         self.bodys = []
-        self.center = Body(self.app, self.position, 7, 5, 0.7)
+        self.center = Body(self.app, self.position, segments * 0.8, 5, 0.89)
         self.app.bodys.append(self.center)
 
         self.create_bodys()
         self.create_springs()
+
+    def get_center(self):
+        center = Vector2(0, 0)
+        for body in self.bodys:
+            center += body.position
+        center /= len(self.bodys)
+        return center
 
     def create_bodys(self):
         for i in range(self.segments):
             position = Vector2(self.position.x + self.radius * math.cos(
                 math.radians(360 / self.segments * i)), self.position.y + self.radius * math.sin(math.radians(360 / self.segments * i)))
             self.bodys.append(
-                Body(self.app, position, 2, 3, 0.5))
+                Body(self.app, position, 2, 3, 0.5, draw=False))
             self.app.bodys.append(self.bodys[-1])
 
     def create_springs(self):
         for i in range(self.segments):
             self.springs.append(
-                Spring(self.app, self.bodys[i], self.bodys[(i + 1) % self.segments]))
+                Spring(self.app, self.bodys[i], self.bodys[(i + 1) % self.segments], draw=False))
             self.springs.append(Spring(
-                self.app, self.bodys[i], self.bodys[(i + 2) % self.segments]))
+                self.app, self.bodys[i], self.bodys[(i + 2) % self.segments], draw=False))
             self.springs.append(Spring(
-                self.app, self.bodys[i], self.bodys[(i + 3) % self.segments]))
+                self.app, self.bodys[i], self.bodys[(i + 3) % self.segments], draw=False))
             self.springs.append(Spring(
-                self.app, self.bodys[i], self.center))
+                self.app, self.bodys[i], self.center, draw=False, strength=0.5))
         self.app.springs.extend(self.springs)
 
     def update(self):
@@ -293,7 +318,8 @@ class CircleSoftBody(SoftBody):
     def collide(self, other: 'CircleSoftBody'):
         try:
             distance = (self.center.position - other.center.position).length()
-            c_direction = (self.center.position - other.center.position).normalize()
+            c_direction = (self.center.position -
+                           other.center.position).normalize()
             self.center.position += c_direction * \
                 (self.radius + other.radius - distance)
             other.center.position -= c_direction * \
@@ -331,7 +357,7 @@ class CircleSoftBody(SoftBody):
             other.apply_force(-impulse)
         except:
             pass
-    
+
     @property
     def rect(self):
         return pygame.Rect(self.center.position.x - self.radius, self.center.position.y - self.radius, self.radius * 2, self.radius * 2)
@@ -339,10 +365,23 @@ class CircleSoftBody(SoftBody):
     def check_collision(self):
         for soft_body in self.app.soft_bodys:
             if isinstance(soft_body, CircleSoftBody):
-                distance = (self.center.position - soft_body.center.position).length()
+                distance = (self.center.position -
+                            soft_body.center.position).length()
                 if soft_body != self and distance < self.radius + soft_body.radius:
                     self.collide(soft_body)
         bodys = self.app.quad_tree.query_range(self.rect)
         for body in bodys:
-            if body not in self.bodys and body.radius > 5 and self.center.position.distance_to(body.position) < self.radius:
+            if body not in self.bodys and self.center.position.distance_to(body.position) < self.radius:
                 self.collide_body(body)
+
+    def draw(self):
+        last_body = self.bodys[-1]
+        for body in self.bodys:
+            if body == self.center:
+                continue
+            if last_body:
+                pygame.draw.line(self.app.screen, (255, 255, 255),
+                                 last_body.position, body.position)
+            last_body = body
+        pygame.draw.circle(self.app.screen, (255, 0, 0),
+                           self.get_center(), 2, 1)

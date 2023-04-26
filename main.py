@@ -15,12 +15,12 @@ class App:
         self.springs = []
         self.soft_bodys = []
 
-        #self.soft_bodys.append(Wire(self, Vector2(100, 200), Vector2(400, 300), 40))
+        self.soft_bodys.append(Wire(self, Vector2(100, 200), Vector2(400, 300), 30))
 
-        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 12))
-        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 12))
+        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 20))
+        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 20))
 
-        # self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 100), 300, 200, (10, 10)))
+        self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 300), 300, 200, (12, 9)))
 
         # for i in range(200):
         #     self.bodys.append(Body(self, Vector2(random.randint(
@@ -30,7 +30,7 @@ class App:
             0, 0, i_wsx, i_wsy), self.bodys)
 
     def waterfall(self, pos, angle, force):
-        body = Body(self, pos, 2, 2, random.uniform(0.89, 0.99))
+        body = Body(self, pos, 5, 3, random.uniform(0.89, 0.99))
         body.apply_force(Vector2(force, 0).rotate(angle) * body.mass)
         self.bodys.append(body)
 
@@ -52,6 +52,11 @@ class App:
             body.draw()
         for spring in self.springs:
             spring.draw()
+        for softbody in self.soft_bodys:
+            try:
+                softbody.draw()
+            except:
+                pass
 
     def run(self):
         while True:
@@ -66,11 +71,11 @@ class App:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_q:
                         mouse_pos = pygame.mouse.get_pos()
-                        for i in range(50):
+                        for i in range(30):
                             self.waterfall(Vector2(
                                 100 + i * random.uniform(0, 0.7), mouse_pos[1] + i * random.uniform(0, 0.4)), 0, 400)
 
-                        for i in range(50):
+                        for i in range(30):
                             self.waterfall(Vector2(
                                 1000 + i * random.uniform(0, 0.7), mouse_pos[1] + i * random.uniform(0, 0.4)), 180, 400)
                     elif event.key == pygame.K_SPACE:
@@ -79,10 +84,10 @@ class App:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         self.soft_bodys.append(CircleSoftBody(self, Vector2(
-                            event.pos[0], event.pos[1]), 60, 12))
+                            event.pos[0], event.pos[1]), 30, 12))
                     elif event.button == 2:
                         self.bodys.append(Body(self, Vector2(
-                            event.pos[0], event.pos[1]), 20, 20, 1))
+                            event.pos[0], event.pos[1]), 30, 20, 1))
             self.update(deltatime)
             self.draw()
             fps = self.clock.get_fps()
