@@ -1,7 +1,7 @@
 import math
 import pygame
 from pygame.math import Vector2
-from constants import G, AIR_K, MAX_TRAJECTORY_POINTS, R
+from constants import G, AIR_K, MAX_TRAJECTORY_POINTS, R, OSSIGEN_MOLAR_MASS
 
 
 class Body:
@@ -424,7 +424,7 @@ class PressuredCircleSoftBody(SoftBody):
         self.position = position
         self.radius = radius
         self.segments = segments
-        self.amount_of_substance = 8 * segments
+        self.amount_of_substance = 50 / OSSIGEN_MOLAR_MASS
 
         self.create_bodys()
         self.create_springs()
@@ -447,9 +447,10 @@ class PressuredCircleSoftBody(SoftBody):
 
     def get_area(self):
         area = 0
-        for i in range(self.segments):
-            area += (self.bodys[i].position.x * self.bodys[(i + 1) % self.segments].position.y) - (
-                self.bodys[(i + 1) % self.segments].position.x * self.bodys[i].position.y)
+        segments = len(self.bodys)
+        for i in range(segments):
+            area += (self.bodys[i].position.x * self.bodys[(i + 1) % segments].position.y) - (
+                self.bodys[(i + 1) % segments].position.x * self.bodys[i].position.y)
         return abs(area / 2)
 
     def calculate_pressure(self):
@@ -457,11 +458,15 @@ class PressuredCircleSoftBody(SoftBody):
 
     def apply_pressure(self):
         pressure = self.calculate_pressure()
-        for bodys in self.bodys:
+        for body in self.bodys:
             center = self.get_center()
-            direction = (bodys.position - center).normalize()
-            bodys.apply_force(direction * pressure)
+            direction = (body.position - center).normalize()
+            body.apply_force(direction * pressure)
 
     def update(self):
         super().update()
         self.apply_pressure()
+    
+    def draw(self):
+        pygame.draw.circle(self.app.screen, (255, 0, 0),
+                           self.get_center(), 2, 1)

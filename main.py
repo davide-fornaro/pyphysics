@@ -24,8 +24,8 @@ class App:
 
         #self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 300), 300, 200, (12, 9)))
 
-        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(1000, 600), 60, 60))
-        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(600, 600), 60, 60))
+        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(1000, 300), 60, 60))
+        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(600, 300), 60, 60))
 
         self.quad_tree = QuadTree(QUAD_CAPACITY, pygame.Rect(
             0, 0, i_wsx, i_wsy), self.bodys)
