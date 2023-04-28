@@ -168,6 +168,17 @@ class Spring:
             self.body1.apply_force(body1_force * self.body1.mass)
         if not self.body2.static:
             self.body2.apply_force(body2_force * self.body2.mass)
+        if abs(dl) < min(self.body1.radius, self.body2.radius) * deltatime:
+            return
+        spring_centre = (self.body1.position + self.body2.position) / 2
+        spring_direction = (self.body1.position -
+                            self.body2.position).normalize()
+        if (not self.body1.static):
+            self.body1.position = spring_centre + spring_direction * \
+                (self.length / 2 + self.body1.radius)
+        if (not self.body2.static):
+            self.body2.position = spring_centre - spring_direction * \
+                (self.length / 2 + self.body2.radius)
 
     def draw(self):
         if self.show:
@@ -241,12 +252,12 @@ class Wire(SoftBody):
     def create_bodys(self):
         for i in range(self.segments):
             static = False
-            radius = 2
+            radius = 3
             if i == 0 or i == self.segments - 1:
                 static = True
                 radius = 5
             self.bodys.append(Body(self.app, self.start + (self.end - self.start)
-                              * (i / self.segments), 2, radius, 0.5, static=static))
+                              * (i / self.segments), 10, radius, 0.5, static=static))
         self.app.bodys.extend(self.bodys)
 
     def create_springs(self):

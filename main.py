@@ -15,24 +15,20 @@ class App:
         self.springs = []
         self.bonds = []
         self.soft_bodys = []
-        self.temperature = 20
+        self.temperature = 200
 
-        self.soft_bodys.append(Wire(self, Vector2(100, 200), Vector2(400, 300), 30))
+        #self.soft_bodys.append(Wire(self, Vector2(100, 200), Vector2(400, 300), 30))
 
-        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 20))
+        #self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 20))
         #self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 20))
 
         #self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 300), 300, 200, (12, 9)))
 
-        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(1000, 600), 60, 30))
+        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(1000, 600), 60, 60))
+        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(600, 600), 60, 60))
 
         self.quad_tree = QuadTree(QUAD_CAPACITY, pygame.Rect(
             0, 0, i_wsx, i_wsy), self.bodys)
-
-    def waterfall(self, pos, angle, force):
-        body = Body(self, pos, 5, 3, random.uniform(0.89, 0.99))
-        body.apply_force(Vector2(force, 0).rotate(angle) * body.mass)
-        self.bodys.append(body)
 
     def update(self, deltatime: float):
         wsx, wsy = self.screen.get_size()
@@ -73,25 +69,14 @@ class App:
                     self.screen = pygame.display.set_mode(
                         event.dict['size'], pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        mouse_pos = pygame.mouse.get_pos()
-                        for i in range(30):
-                            self.waterfall(Vector2(
-                                100 + i * random.uniform(0, 0.7), mouse_pos[1] + i * random.uniform(0, 0.4)), 0, 400)
-
-                        for i in range(30):
-                            self.waterfall(Vector2(
-                                1000 + i * random.uniform(0, 0.7), mouse_pos[1] + i * random.uniform(0, 0.4)), 180, 400)
-                    elif event.key == pygame.K_SPACE:
+                    if event.key == pygame.K_SPACE:
                         for body in self.bodys:
                             body.velocity = Vector2(0, 0)
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
-                        self.soft_bodys.append(CircleSoftBody(self, Vector2(
-                            event.pos[0], event.pos[1]), 30, 12))
-                    elif event.button == 2:
                         self.bodys.append(Body(self, Vector2(
-                            event.pos[0], event.pos[1]), 30, 20, 1)) 
+                            event.pos[0], event.pos[1]), 30, 20, 1))
+                        
             pressed = pygame.key.get_pressed()
             if pressed[pygame.K_o]:
                 self.temperature += 2
