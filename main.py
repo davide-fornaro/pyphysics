@@ -13,18 +13,18 @@ class App:
         self.clock = pygame.time.Clock()
         self.bodys = []
         self.springs = []
+        self.bonds = []
         self.soft_bodys = []
+        self.temperature = 20
 
         self.soft_bodys.append(Wire(self, Vector2(100, 200), Vector2(400, 300), 30))
 
         self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 20))
-        self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 20))
+        #self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 20))
 
-        self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 300), 300, 200, (12, 9)))
+        #self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 300), 300, 200, (12, 9)))
 
-        # for i in range(200):
-        #     self.bodys.append(Body(self, Vector2(random.randint(
-        #         0, i_wsx), random.randint(i_wsy - 200, i_wsy - 100)), 3, 4, random.uniform(0.89, 0.99)))
+        self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(1000, 600), 60, 30))
 
         self.quad_tree = QuadTree(QUAD_CAPACITY, pygame.Rect(
             0, 0, i_wsx, i_wsy), self.bodys)
@@ -42,6 +42,8 @@ class App:
             body.update(deltatime)
         for spring in self.springs:
             spring.update(deltatime)
+        for bond in self.bonds:
+            bond.update(deltatime)
         for softbody in self.soft_bodys:
             softbody.update()
 
@@ -52,6 +54,8 @@ class App:
             body.draw()
         for spring in self.springs:
             spring.draw()
+        for bond in self.bonds:
+            bond.draw()
         for softbody in self.soft_bodys:
             try:
                 softbody.draw()
@@ -87,13 +91,18 @@ class App:
                             event.pos[0], event.pos[1]), 30, 12))
                     elif event.button == 2:
                         self.bodys.append(Body(self, Vector2(
-                            event.pos[0], event.pos[1]), 30, 20, 1))
+                            event.pos[0], event.pos[1]), 30, 20, 1)) 
+            pressed = pygame.key.get_pressed()
+            if pressed[pygame.K_o]:
+                self.temperature += 2
+            if pressed[pygame.K_p]:
+                self.temperature -= 2
             self.update(deltatime)
             self.draw()
             fps = self.clock.get_fps()
             pygame.display.flip()
             pygame.display.set_caption(
-                f"fps: {str(round(fps, 2))} | bodys: {len(self.bodys)}")
+                f"fps: {str(round(fps, 2))} | bodys: {len(self.bodys)} | temperature: {self.temperature}")
 
 
 def main():

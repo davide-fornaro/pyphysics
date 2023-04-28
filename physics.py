@@ -1,7 +1,7 @@
 import math
 import pygame
 from pygame.math import Vector2
-from constants import G, AIR_K, MAX_TRAJECTORY_POINTS
+from constants import G, AIR_K, MAX_TRAJECTORY_POINTS, R
 
 
 class Body:
@@ -169,17 +169,37 @@ class Spring:
         if not self.body2.static:
             self.body2.apply_force(body2_force * self.body2.mass)
 
-        # if abs(dl) < min(self.body1.radius, self.body2.radius) * deltatime:
-        #     return
-        # spring_centre = (self.body1.position + self.body2.position) / 2
-        # spring_direction = (self.body1.position -
-        #                     self.body2.position).normalize()
-        # if (not self.body1.static):
-        #     self.body1.position = spring_centre + spring_direction * \
-        #         (self.length / 2 + self.body1.radius)
-        # if (not self.body2.static):
-        #     self.body2.position = spring_centre - spring_direction * \
-        #         (self.length / 2 + self.body2.radius)
+    def draw(self):
+        if self.show:
+            pygame.draw.aaline(self.app.screen, pygame.color.Color(
+                "white"), self.body1.position, self.body2.position, 2)
+
+
+class Bond:
+    def __init__(self, app, body1: Body, body2: Body, draw: bool = True):
+        self.app = app
+        self.body1 = body1
+        self.body2 = body2
+        self.length = body1.position.distance_to(body2.position) - \
+            body1.radius - body2.radius
+        self.show = draw
+
+    def update(self):
+        if self.body1 not in self.app.bodys or self.body2 not in self.app.bodys:
+            self.app.bonds.remove(self)
+            return
+        if (self.body2.position - self.body1.position).length() == 0:
+            return
+
+        spring_centre = (self.body1.position + self.body2.position) / 2
+        spring_direction = (self.body1.position -
+                            self.body2.position).normalize()
+        if (not self.body1.static):
+            self.body1.position = spring_centre + spring_direction * \
+                (self.length / 2 + self.body1.radius)
+        if (not self.body2.static):
+            self.body2.position = spring_centre - spring_direction * \
+                (self.length / 2 + self.body2.radius)
 
     def draw(self):
         if self.show:
@@ -192,6 +212,13 @@ class SoftBody:
         self.app = app
         self.springs = []
         self.bodys = []
+
+    def get_center(self):
+        center = Vector2(0, 0)
+        for body in self.bodys:
+            center += body.position
+        center /= len(self.bodys)
+        return center
 
     def update(self):
         for spring in self.springs:
@@ -283,13 +310,6 @@ class CircleSoftBody(SoftBody):
 
         self.create_bodys()
         self.create_springs()
-
-    def get_center(self):
-        center = Vector2(0, 0)
-        for body in self.bodys:
-            center += body.position
-        center /= len(self.bodys)
-        return center
 
     def create_bodys(self):
         for i in range(self.segments):
@@ -385,3 +405,52 @@ class CircleSoftBody(SoftBody):
             last_body = body
         pygame.draw.circle(self.app.screen, (255, 0, 0),
                            self.get_center(), 2, 1)
+
+
+class PressuredCircleSoftBody(SoftBody):
+    def __init__(self, app, position: Vector2, radius: int, segments: int):
+        super().__init__(app)
+        self.position = position
+        self.radius = radius
+        self.segments = segments
+        self.amount_of_substance = 8 * segments
+
+        self.create_bodys()
+        self.create_springs()
+
+    def create_bodys(self):
+        for i in range(self.segments):
+            position = Vector2(self.position.x + self.radius * math.cos(
+                math.radians(360 / self.segments * i)), self.position.y + self.radius * math.sin(math.radians(360 / self.segments * i)))
+            self.bodys.append(
+                Body(self.app, position, 8, 3, 0.5, draw=False))
+            self.app.bodys.append(self.bodys[-1])
+
+    def create_springs(self):
+        for i in range(self.segments):
+            self.springs.append(
+                Spring(self.app, self.bodys[i], self.bodys[(i + 1) % self.segments]))
+            self.springs.append(
+                Spring(self.app, self.bodys[i], self.bodys[(i + 2) % self.segments]))
+        self.app.springs.extend(self.springs)
+
+    def get_area(self):
+        area = 0
+        for i in range(self.segments):
+            area += (self.bodys[i].position.x * self.bodys[(i + 1) % self.segments].position.y) - (
+                self.bodys[(i + 1) % self.segments].position.x * self.bodys[i].position.y)
+        return abs(area / 2)
+
+    def calculate_pressure(self):
+        return self.amount_of_substance * R * self.app.temperature / self.get_area()
+
+    def apply_pressure(self):
+        pressure = self.calculate_pressure()
+        for bodys in self.bodys:
+            center = self.get_center()
+            direction = (bodys.position - center).normalize()
+            bodys.apply_force(direction * pressure)
+
+    def update(self):
+        super().update()
+        self.apply_pressure()

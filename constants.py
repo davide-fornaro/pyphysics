@@ -8,3 +8,4 @@ G = Vector2(0, 9.81)
 AIR_VISCOSITY = .148e-4
 AIR_K = 6 * math.pi * AIR_VISCOSITY
 MAX_TRAJECTORY_POINTS = 199
+R = 8.314  # gas constant
