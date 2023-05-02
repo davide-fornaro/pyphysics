@@ -37,6 +37,7 @@ class Body:
         self.check_collision()
         if self.static:
             return
+        self.position += self.velocity * deltatime
         self.velocity += G * deltatime
         wsx, wsy = self.app.screen.get_size()
 
@@ -57,8 +58,6 @@ class Body:
         #     self.velocity.scale_to_length(1000)
 
         self.velocity -= AIR_K * self.radius * self.velocity * deltatime
-
-        self.position += self.velocity * deltatime
         self.create_trajectory_points()
 
     def draw(self):
@@ -136,7 +135,7 @@ class Body:
 
 
 class Spring:
-    def __init__(self, app, body1: Body, body2: Body, strength: float = 1, damping: float = 0.03, draw: bool = True):
+    def __init__(self, app, body1: Body, body2: Body, strength: float = 4, damping: float = 0.03, draw: bool = True):
         self.app = app
         self.body1 = body1
         self.body2 = body2
@@ -424,7 +423,7 @@ class PressuredCircleSoftBody(SoftBody):
         self.position = position
         self.radius = radius
         self.segments = segments
-        self.amount_of_substance = 50 / OSSIGEN_MOLAR_MASS
+        self.amount_of_substance = 20 / OSSIGEN_MOLAR_MASS
 
         self.create_bodys()
         self.create_springs()
