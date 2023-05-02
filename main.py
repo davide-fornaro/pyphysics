@@ -78,9 +78,9 @@ class App:
                         
             pressed = pygame.key.get_pressed()
             if pressed[pygame.K_o]:
-                self.temperature += 2
+                self.temperature += 1
             if pressed[pygame.K_p]:
-                self.temperature -= 2
+                self.temperature -= 1
             self.update(deltatime)
             self.draw()
             fps = self.clock.get_fps()
