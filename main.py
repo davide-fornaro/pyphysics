@@ -19,9 +19,6 @@ class App:
 
         self.soft_bodys.append(Wire(self, Vector2(100, 200), Vector2(400, 300), 30))
 
-        #self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 100), 60, 20))
-        #self.soft_bodys.append(CircleSoftBody(self, Vector2(500, 400), 60, 20))
-
         self.soft_bodys.append(RectangleSoftBody(self, Vector2(800, 300), 300, 200, (12, 9)))
 
         self.soft_bodys.append(PressuredCircleSoftBody(self, Vector2(600, 300), 60, 60))

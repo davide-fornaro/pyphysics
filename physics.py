@@ -307,116 +307,6 @@ class RectangleSoftBody(SoftBody):
         self.app.springs.extend(self.springs)
 
 
-class CircleSoftBody(SoftBody):
-    def __init__(self, app, position: Vector2, radius: int, segments: int):
-        super().__init__(app)
-        self.position = position
-        self.radius = radius
-        self.segments = segments
-        self.springs = []
-        self.bodys = []
-        self.center = Body(self.app, self.position, segments * 0.8, 5, 0.89)
-        self.app.bodys.append(self.center)
-
-        self.create_bodys()
-        self.create_springs()
-
-    def create_bodys(self):
-        for i in range(self.segments):
-            position = Vector2(self.position.x + self.radius * math.cos(
-                math.radians(360 / self.segments * i)), self.position.y + self.radius * math.sin(math.radians(360 / self.segments * i)))
-            self.bodys.append(
-                Body(self.app, position, 2, 3, 0.5, draw=False))
-            self.app.bodys.append(self.bodys[-1])
-
-    def create_springs(self):
-        for i in range(self.segments):
-            self.springs.append(
-                Spring(self.app, self.bodys[i], self.bodys[(i + 1) % self.segments], draw=False))
-            self.springs.append(Spring(
-                self.app, self.bodys[i], self.bodys[(i + 2) % self.segments], draw=False))
-            self.springs.append(Spring(
-                self.app, self.bodys[i], self.bodys[(i + 3) % self.segments], draw=False))
-            self.springs.append(Spring(
-                self.app, self.bodys[i], self.center, draw=False, strength=0.5))
-        self.app.springs.extend(self.springs)
-
-    def update(self):
-        super().update()
-        self.check_collision()
-
-    def collide(self, other: 'CircleSoftBody'):
-        try:
-            distance = (self.center.position - other.center.position).length()
-            c_direction = (self.center.position -
-                           other.center.position).normalize()
-            self.center.position += c_direction * \
-                (self.radius + other.radius - distance)
-            other.center.position -= c_direction * \
-                (self.radius + other.radius - distance)
-            rv = self.center.velocity - other.center.velocity
-            if rv.dot(c_direction) > 0:
-                return
-            e = min(self.center.elasticity, other.center.elasticity)
-            j = -(1 + e) * rv.dot(c_direction)
-            j /= self.center.inv_mass + other.center.inv_mass
-            impulse = c_direction * j
-
-            self.center.apply_force(impulse)
-            other.center.apply_force(-impulse)
-        except:
-            pass
-
-    def collide_body(self, other: Body):
-        try:
-            distance = (self.center.position - other.position).length()
-            c_direction = (self.center.position - other.position).normalize()
-            self.center.position += c_direction * \
-                (self.radius - distance)
-            other.position -= c_direction * \
-                (self.radius - distance)
-            rv = self.center.velocity - other.velocity
-            if rv.dot(c_direction) > 0:
-                return
-            e = min(self.center.elasticity, other.elasticity)
-            j = -(1 + e) * rv.dot(c_direction)
-            j /= self.center.inv_mass + other.inv_mass
-            impulse = c_direction * j
-
-            self.center.apply_force(impulse)
-            other.apply_force(-impulse)
-        except:
-            pass
-
-    @property
-    def rect(self):
-        return pygame.Rect(self.center.position.x - self.radius, self.center.position.y - self.radius, self.radius * 2, self.radius * 2)
-
-    def check_collision(self):
-        for soft_body in self.app.soft_bodys:
-            if isinstance(soft_body, CircleSoftBody):
-                distance = (self.center.position -
-                            soft_body.center.position).length()
-                if soft_body != self and distance < self.radius + soft_body.radius:
-                    self.collide(soft_body)
-        bodys = self.app.quad_tree.query_range(self.rect)
-        for body in bodys:
-            if body not in self.bodys and self.center.position.distance_to(body.position) < self.radius:
-                self.collide_body(body)
-
-    def draw(self):
-        last_body = self.bodys[-1]
-        for body in self.bodys:
-            if body == self.center:
-                continue
-            if last_body:
-                pygame.draw.line(self.app.screen, (255, 255, 255),
-                                 last_body.position, body.position)
-            last_body = body
-        pygame.draw.circle(self.app.screen, (255, 0, 0),
-                           self.get_center(), 2, 1)
-
-
 class PressuredCircleSoftBody(SoftBody):
     def __init__(self, app, position: Vector2, radius: int, segments: int):
         super().__init__(app)
@@ -465,7 +355,7 @@ class PressuredCircleSoftBody(SoftBody):
     def update(self):
         super().update()
         self.apply_pressure()
-    
+
     def draw(self):
         pygame.draw.circle(self.app.screen, (255, 0, 0),
                            self.get_center(), 2, 1)
