@@ -135,7 +135,7 @@ class Body:
 
 
 class Spring:
-    def __init__(self, app, body1: Body, body2: Body, strength: float = 4, damping: float = 0.03, draw: bool = True):
+    def __init__(self, app, body1: Body, body2: Body, strength: float = 4, damping: float = 0.03, draw: bool = True, fixed: bool = False):
         self.app = app
         self.body1 = body1
         self.body2 = body2
@@ -144,6 +144,7 @@ class Spring:
         self.length = body1.position.distance_to(body2.position) - \
             body1.radius - body2.radius
         self.show = draw
+        self.fixed = fixed
 
     def update(self, deltatime: float):
         if self.body1 not in self.app.bodys or self.body2 not in self.app.bodys:
@@ -167,6 +168,8 @@ class Spring:
             self.body1.apply_force(body1_force * self.body1.mass)
         if not self.body2.static:
             self.body2.apply_force(body2_force * self.body2.mass)
+        if not self.fixed:
+            return
         if abs(dl) < min(self.body1.radius, self.body2.radius) * deltatime:
             return
         spring_centre = (self.body1.position + self.body2.position) / 2
@@ -329,9 +332,9 @@ class PressuredCircleSoftBody(SoftBody):
     def create_springs(self):
         for i in range(self.segments):
             self.springs.append(
-                Spring(self.app, self.bodys[i], self.bodys[(i + 1) % self.segments]))
+                Spring(self.app, self.bodys[i], self.bodys[(i + 1) % self.segments], fixed=True))
             self.springs.append(
-                Spring(self.app, self.bodys[i], self.bodys[(i + 2) % self.segments]))
+                Spring(self.app, self.bodys[i], self.bodys[(i + 2) % self.segments], fixed=True))
         self.app.springs.extend(self.springs)
 
     def get_area(self):
