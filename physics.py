@@ -135,7 +135,7 @@ class Body:
 
 
 class Spring:
-    def __init__(self, app, body1: Body, body2: Body, strength: float = 4, damping: float = 0.06, draw: bool = True, fixed: bool = False):
+    def __init__(self, app, body1: Body, body2: Body, strength: float = 4, damping: float = 0.08, draw: bool = True, fixed: bool = False):
         self.app = app
         self.body1 = body1
         self.body2 = body2
